@@ -15,7 +15,10 @@ import type { FunctionCategory, InventoryBatch, InventoryItem, InventoryStore, S
 import type { Profile } from "@/types/user";
 
 const explicitDataSource = process.env.NEXT_PUBLIC_DATA_SOURCE;
-const hasSupabaseConfig = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const hasSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+);
 
 export const dataSource =
   explicitDataSource === "mock"

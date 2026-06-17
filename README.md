@@ -68,6 +68,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```
 
+如果 Supabase 控制台或 Vercel 集成提供的是 publishable key，也可以用：
+
+```bash
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
 9. 点击 Deploy。部署完成后使用 Vercel 自动生成的 `.vercel.app` 地址访问。
 10. 如果之后修改了环境变量，需要到 Vercel 的 `Deployments` 页面重新部署一次，新的前端包才会读取到变量。
 
@@ -81,6 +87,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```
 
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 二选一即可。
+
 本地没有 Supabase 时，可使用：
 
 ```bash
@@ -88,6 +96,8 @@ NEXT_PUBLIC_DATA_SOURCE=mock
 ```
 
 mock 模式只适合单人演示。页面顶部会显示黄色提示，提醒当前数据不会云端同步。
+
+部署后可以访问 `/debug` 页面查看 Vercel 构建是否实际读取到了 Supabase 环境变量。
 
 ## 创建第一个 admin 用户
 
