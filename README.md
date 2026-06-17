@@ -15,8 +15,9 @@
 
 ## 当前数据接入状态
 
-- `NEXT_PUBLIC_DATA_SOURCE=mock`：本地演示模式，使用 mock 数据，新增/编辑/出入库只存在于浏览器运行期间，刷新后会回到初始状态。
+- `NEXT_PUBLIC_DATA_SOURCE=mock`：本地演示模式，新增/编辑/出入库会保存到当前浏览器的 `localStorage`，刷新后仍在，但不会同步到云端、其他浏览器或其他成员。
 - `NEXT_PUBLIC_DATA_SOURCE=supabase`：真实数据库模式，使用 Supabase Auth + RLS + PostgreSQL。库存物品、批次、出入库记录和审计日志会写入 Supabase。
+- 如果没有设置 `NEXT_PUBLIC_DATA_SOURCE`，但已经配置 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY`，系统会自动进入 Supabase 模式。
 - 当前不需要 `SUPABASE_SERVICE_ROLE_KEY`。项目优先依赖 Supabase Auth 和 RLS，避免把高权限密钥用于 Vercel 前端。
 
 ## 本地运行
@@ -68,6 +69,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```
 
 9. 点击 Deploy。部署完成后使用 Vercel 自动生成的 `.vercel.app` 地址访问。
+10. 如果之后修改了环境变量，需要到 Vercel 的 `Deployments` 页面重新部署一次，新的前端包才会读取到变量。
 
 ## Supabase 配置
 
@@ -84,6 +86,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```bash
 NEXT_PUBLIC_DATA_SOURCE=mock
 ```
+
+mock 模式只适合单人演示。页面顶部会显示黄色提示，提醒当前数据不会云端同步。
 
 ## 创建第一个 admin 用户
 

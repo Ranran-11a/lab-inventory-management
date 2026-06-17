@@ -43,11 +43,37 @@ interface InventoryContextValue extends InventoryStore {
 
 const mockUser = initialInventoryStore.profiles[0];
 const emptyStore: InventoryStore = { profiles: [], categories: [], items: [], batches: [], movements: [], auditLogs: [] };
+const mockStoreStorageKey = "lab-inventory-management.mock-store.v1";
 const InventoryContext = createContext<InventoryContextValue | null>(null);
+
+function loadStoredMockStore(): InventoryStore {
+  if (typeof window === "undefined") return initialInventoryStore;
+  const raw = window.localStorage.getItem(mockStoreStorageKey);
+  if (!raw) return initialInventoryStore;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<InventoryStore>;
+    return {
+      profiles: Array.isArray(parsed.profiles) && parsed.profiles.length > 0 ? parsed.profiles : initialInventoryStore.profiles,
+      categories: Array.isArray(parsed.categories) && parsed.categories.length > 0 ? parsed.categories : initialInventoryStore.categories,
+      items: Array.isArray(parsed.items) ? parsed.items : initialInventoryStore.items,
+      batches: Array.isArray(parsed.batches) ? parsed.batches : initialInventoryStore.batches,
+      movements: Array.isArray(parsed.movements) ? parsed.movements : initialInventoryStore.movements,
+      auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : initialInventoryStore.auditLogs
+    };
+  } catch {
+    return initialInventoryStore;
+  }
+}
+
+function saveStoredMockStore(store: InventoryStore) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(mockStoreStorageKey, JSON.stringify(store));
+}
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const isSupabaseMode = dataSource === "supabase";
-  const [store, setStore] = useState<InventoryStore>(isSupabaseMode ? emptyStore : initialInventoryStore);
+  const [store, setStore] = useState<InventoryStore>(() => (isSupabaseMode ? emptyStore : loadStoredMockStore()));
   const [currentUser, setCurrentUser] = useState<Profile>(mockUser);
   const [isAuthenticated, setIsAuthenticated] = useState(!isSupabaseMode);
   const [isLoading, setIsLoading] = useState(isSupabaseMode);
@@ -100,6 +126,11 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     });
     return () => listener.subscription.unsubscribe();
   }, [isSupabaseMode, refreshData]);
+
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    saveStoredMockStore(store);
+  }, [isSupabaseMode, store]);
 
   const audit = useCallback(
     (tableName: string, recordId: string, action: AuditLog["action"], oldValue?: unknown, newValue?: unknown): AuditLog => ({

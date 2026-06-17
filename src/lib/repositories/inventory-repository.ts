@@ -14,7 +14,15 @@ import {
 import type { FunctionCategory, InventoryBatch, InventoryItem, InventoryStore, StockMovement } from "@/types/inventory";
 import type { Profile } from "@/types/user";
 
-export const dataSource = process.env.NEXT_PUBLIC_DATA_SOURCE === "supabase" ? "supabase" : "mock";
+const explicitDataSource = process.env.NEXT_PUBLIC_DATA_SOURCE;
+const hasSupabaseConfig = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+export const dataSource =
+  explicitDataSource === "mock"
+    ? "mock"
+    : explicitDataSource === "supabase" || hasSupabaseConfig
+      ? "supabase"
+      : "mock";
 export const FREE_LIST_LIMIT = 100;
 
 export async function ensureSupabaseProfile(user: { id: string; email?: string | null }): Promise<Profile> {

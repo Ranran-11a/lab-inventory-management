@@ -19,7 +19,7 @@ const navItems = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, isSupabaseMode, isAuthenticated, isLoading, signOut } = useInventory();
+  const { currentUser, isSupabaseMode, isAuthenticated, isLoading, authError, signOut } = useInventory();
 
   return (
     <ToastProvider>
@@ -71,6 +71,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main className="px-4 py-5 lg:px-6">
+            {!isSupabaseMode && (
+              <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                当前是 mock 演示模式：数据只会保存在当前浏览器，不会同步到云端或其他成员。要多人共享保存，请在 Vercel 配置 Supabase 环境变量并重新部署。
+              </div>
+            )}
+            {isSupabaseMode && authError && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                Supabase 连接异常：{authError}
+              </div>
+            )}
+            {isSupabaseMode && isAuthenticated && currentUser.role === "viewer" && (
+              <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                当前账号是 viewer，只能查看，不能新增或编辑。请在 Supabase 的 profiles 表中把你的角色改为 admin 或 editor。
+              </div>
+            )}
             {isSupabaseMode && isLoading ? (
               <div className="rounded-md bg-white p-8 text-center text-sm text-muted shadow-soft ring-1 ring-line">正在加载...</div>
             ) : isSupabaseMode && !isAuthenticated ? (
