@@ -1,0 +1,29 @@
+name: Apply persistence mode patch
+
+on:
+  push:
+    paths:
+      - "patches/persistence-mode.patch"
+      - ".github/workflows/apply-persistence-mode-patch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: |
+          git apply patches/persistence-mode.patch
+          rm -f patches/persistence-mode.patch .github/workflows/apply-persistence-mode-patch.yml
+          rmdir patches 2>/dev/null || true
+      - name: Commit updated project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Improve data persistence mode handling" || exit 0
+          git push
