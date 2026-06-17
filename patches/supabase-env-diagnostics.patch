@@ -1,0 +1,148 @@
+diff --git a/.env.example b/.env.example
+index 64232ad..f0f6f4b 100644
+--- a/.env.example
++++ b/.env.example
+@@ -5,3 +5,5 @@ NEXT_PUBLIC_DATA_SOURCE=supabase
+ # Supabase 项目配置
+ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
++# 如果 Supabase 只提供 publishable key，也可以使用：
++# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+diff --git a/README.md b/README.md
+index 898877e..4814def 100644
+--- a/README.md
++++ b/README.md
+@@ -68,6 +68,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+ ```
+ 
++如果 Supabase 控制台或 Vercel 集成提供的是 publishable key，也可以用：
++
++```bash
++NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
++```
++
+ 9. 点击 Deploy。部署完成后使用 Vercel 自动生成的 `.vercel.app` 地址访问。
+ 10. 如果之后修改了环境变量，需要到 Vercel 的 `Deployments` 页面重新部署一次，新的前端包才会读取到变量。
+ 
+@@ -81,6 +87,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+ ```
+ 
++`NEXT_PUBLIC_SUPABASE_ANON_KEY` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 二选一即可。
++
+ 本地没有 Supabase 时，可使用：
+ 
+ ```bash
+@@ -89,6 +97,8 @@ NEXT_PUBLIC_DATA_SOURCE=mock
+ 
+ mock 模式只适合单人演示。页面顶部会显示黄色提示，提醒当前数据不会云端同步。
+ 
++部署后可以访问 `/debug` 页面查看 Vercel 构建是否实际读取到了 Supabase 环境变量。
++
+ ## 创建第一个 admin 用户
+ 
+ 1. 在网站注册第一个账号。
+diff --git a/src/app/debug/page.tsx b/src/app/debug/page.tsx
+new file mode 100644
+index 0000000..6dc9de6
+--- /dev/null
++++ b/src/app/debug/page.tsx
+@@ -0,0 +1,68 @@
++"use client";
++
++import { dataSource } from "@/lib/repositories/inventory-repository";
++
++function mask(value?: string) {
++  if (!value) return "未读取到";
++  if (value.length <= 12) return "已读取到";
++  return `${value.slice(0, 8)}...${value.slice(-4)}`;
++}
++
++export default function DebugPage() {
++  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
++  const explicitDataSource = process.env.NEXT_PUBLIC_DATA_SOURCE;
++  const hasWritableSupabaseConfig = Boolean(supabaseUrl && (anonKey || publishableKey));
++
++  return (
++    <div className="space-y-5">
++      <div>
++        <h1 className="text-2xl font-semibold text-ink">部署诊断</h1>
++        <p className="mt-1 text-sm text-muted">用于确认 Vercel 构建时是否读取到了 Supabase 环境变量。</p>
++      </div>
++
++      <section className="rounded-md bg-white p-5 shadow-soft ring-1 ring-line">
++        <h2 className="font-semibold text-ink">当前模式</h2>
++        <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
++          <div>
++            <dt className="text-muted">dataSource</dt>
++            <dd className="mt-1 font-medium text-ink">{dataSource}</dd>
++          </div>
++          <div>
++            <dt className="text-muted">是否具备 Supabase 配置</dt>
++            <dd className="mt-1 font-medium text-ink">{hasWritableSupabaseConfig ? "是" : "否"}</dd>
++          </div>
++        </dl>
++      </section>
++
++      <section className="rounded-md bg-white p-5 shadow-soft ring-1 ring-line">
++        <h2 className="font-semibold text-ink">公开环境变量</h2>
++        <dl className="mt-4 grid gap-3 text-sm">
++          <div>
++            <dt className="text-muted">NEXT_PUBLIC_DATA_SOURCE</dt>
++            <dd className="mt-1 font-mono text-ink">{explicitDataSource || "未设置"}</dd>
++          </div>
++          <div>
++            <dt className="text-muted">NEXT_PUBLIC_SUPABASE_URL</dt>
++            <dd className="mt-1 font-mono text-ink">{mask(supabaseUrl)}</dd>
++          </div>
++          <div>
++            <dt className="text-muted">NEXT_PUBLIC_SUPABASE_ANON_KEY</dt>
++            <dd className="mt-1 font-mono text-ink">{mask(anonKey)}</dd>
++          </div>
++          <div>
++            <dt className="text-muted">NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</dt>
++            <dd className="mt-1 font-mono text-ink">{mask(publishableKey)}</dd>
++          </div>
++        </dl>
++      </section>
++
++      <section className="rounded-md border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
++        如果这里显示 `dataSource = mock`，请在 Vercel 项目的 Environment Variables 中添加
++        `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 或
++        `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`，并重新部署 Production。
++      </section>
++    </div>
++  );
++}
+diff --git a/src/lib/repositories/inventory-repository.ts b/src/lib/repositories/inventory-repository.ts
+index 6afa8f2..2200b5a 100644
+--- a/src/lib/repositories/inventory-repository.ts
++++ b/src/lib/repositories/inventory-repository.ts
+@@ -15,7 +15,10 @@ import type { FunctionCategory, InventoryBatch, InventoryItem, InventoryStore, S
+ import type { Profile } from "@/types/user";
+ 
+ const explicitDataSource = process.env.NEXT_PUBLIC_DATA_SOURCE;
+-const hasSupabaseConfig = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
++const hasSupabaseConfig = Boolean(
++  process.env.NEXT_PUBLIC_SUPABASE_URL &&
++    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
++);
+ 
+ export const dataSource =
+   explicitDataSource === "mock"
+diff --git a/src/lib/supabase/client.ts b/src/lib/supabase/client.ts
+index 7943a02..66d0679 100644
+--- a/src/lib/supabase/client.ts
++++ b/src/lib/supabase/client.ts
+@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
+ 
+ export function createSupabaseBrowserClient() {
+   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+ 
+   if (!url || !anonKey) {
+     return null;
