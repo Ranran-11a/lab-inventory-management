@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useInventory } from "@/components/inventory/inventory-provider";
 import { Button } from "@/components/ui/button";
 
@@ -13,12 +13,21 @@ export function AuthPanel() {
   const [message, setMessage] = useState(authError ?? "");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (authError) setMessage(authError);
+  }, [authError]);
+
   async function submit() {
     setLoading(true);
     setMessage("");
-    const result = mode === "signin" ? await signIn(email, password) : await signUp(email, password, displayName);
-    if (result) setMessage(result);
-    setLoading(false);
+    try {
+      const result = mode === "signin" ? await signIn(email, password) : await signUp(email, password, displayName);
+      if (result) setMessage(result);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "登录或注册失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

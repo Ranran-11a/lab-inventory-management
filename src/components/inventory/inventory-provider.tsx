@@ -45,6 +45,7 @@ const mockUser = initialInventoryStore.profiles[0];
 const emptyStore: InventoryStore = { profiles: [], categories: [], items: [], batches: [], movements: [], auditLogs: [] };
 const mockStoreStorageKey = "lab-inventory-management.mock-store.v1";
 const InventoryContext = createContext<InventoryContextValue | null>(null);
+const authTimeoutMs = 15000;
 
 function loadStoredMockStore(): InventoryStore {
   if (typeof window === "undefined") return initialInventoryStore;
@@ -69,6 +70,23 @@ function loadStoredMockStore(): InventoryStore {
 function saveStoredMockStore(store: InventoryStore) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(mockStoreStorageKey, JSON.stringify(store));
+}
+
+async function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), authTimeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+function authErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
@@ -156,30 +174,44 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     activeItems: store.items.filter((item) => !item.deletedAt),
     refreshData,
     signIn: async (email, password) => {
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) return "未配置 Supabase 环境变量";
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return error.message;
-      if (data.user) {
-        const profile = await ensureSupabaseProfile(data.user);
-        setCurrentUser(profile);
-        setIsAuthenticated(true);
-        await refreshData();
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) return "未配置 Supabase 环境变量";
+        const { data, error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          "登录请求超时，请检查 Supabase URL、密钥和网络状态"
+        );
+        if (error) return error.message;
+        if (data.user) {
+          const profile = await withTimeout(ensureSupabaseProfile(data.user), "登录成功，但读取用户权限超时，请检查 profiles 表和 RLS 策略");
+          setCurrentUser(profile);
+          setIsAuthenticated(true);
+          await withTimeout(refreshData(), "登录成功，但加载库存数据超时，请检查 Supabase 表结构和 RLS 策略");
+        }
+        return undefined;
+      } catch (error) {
+        return authErrorMessage(error, "登录失败");
       }
-      return undefined;
     },
     signUp: async (email, password, displayName) => {
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) return "未配置 Supabase 环境变量";
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
-      if (error) return error.message;
-      if (data.user) {
-        const profile = await ensureSupabaseProfile({ id: data.user.id, email: data.user.email });
-        setCurrentUser(profile);
-        setIsAuthenticated(true);
-        await refreshData();
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) return "未配置 Supabase 环境变量";
+        const { data, error } = await withTimeout(
+          supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } }),
+          "注册请求超时，请检查 Supabase URL、密钥和网络状态"
+        );
+        if (error) return error.message;
+        if (data.user) {
+          const profile = await withTimeout(ensureSupabaseProfile({ id: data.user.id, email: data.user.email }), "注册成功，但创建用户资料超时，请检查 profiles 表和 RLS 策略");
+          setCurrentUser(profile);
+          setIsAuthenticated(true);
+          await withTimeout(refreshData(), "注册成功，但加载库存数据超时，请检查 Supabase 表结构和 RLS 策略");
+        }
+        return data.session ? undefined : "注册成功。若 Supabase 开启邮箱确认，请先到邮箱完成确认后再登录。";
+      } catch (error) {
+        return authErrorMessage(error, "注册失败");
       }
-      return data.session ? undefined : "注册成功。若 Supabase 开启邮箱确认，请先到邮箱完成确认后再登录。";
     },
     signOut: async () => {
       const supabase = createSupabaseBrowserClient();
