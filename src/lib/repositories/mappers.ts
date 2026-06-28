@@ -69,7 +69,7 @@ export function toItemRow(item: Partial<InventoryItem>) {
     default_location: item.defaultLocation,
     storage_condition: item.storageCondition,
     safety_level: item.safetyLevel,
-    owner_id: item.ownerId,
+    owner_id: uuidOrUndefined(item.ownerId),
     notes: item.notes,
     tags: item.tags,
     created_by: item.createdBy,
@@ -114,7 +114,7 @@ export function toBatchRow(batch: Partial<InventoryBatch>) {
     unit_price: batch.unitPrice,
     currency: batch.currency,
     supplier: batch.supplier,
-    purchaser_id: batch.purchaserId,
+    purchaser_id: uuidOrUndefined(batch.purchaserId),
     location: batch.location,
     invoice_number: batch.invoiceNumber,
     order_number: batch.orderNumber,
@@ -164,4 +164,8 @@ export function toAuditRow(audit: Partial<AuditLog>) {
     new_value: audit.newValue,
     operator_id: audit.operatorId
   };
+}
+
+function uuidOrUndefined(value?: string) {
+  return value?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i) ? value : undefined;
 }
