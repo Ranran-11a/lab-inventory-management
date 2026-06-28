@@ -142,7 +142,7 @@ export async function softDeleteSupabaseItem(id: string, userId: string): Promis
   const { data: oldValue } = await supabase.from("inventory_items").select("*").eq("id", id).maybeSingle();
   const { data, error } = await supabase
     .from("inventory_items")
-    .update({ deleted_at: new Date().toISOString(), updated_by: userId })
+    .update({ deleted_at: new Date().toISOString(), updated_by: uuidOrUndefined(userId) })
     .eq("id", id)
     .select()
     .single();
@@ -192,7 +192,7 @@ export async function stockOutSupabaseBatch(
   if (result.error || !result.movement) return { batch, movement: result.movement as StockMovement, error: result.error };
   const { data, error } = await supabase
     .from("inventory_batches")
-    .update({ current_quantity: result.batch.currentQuantity, updated_by: userId })
+    .update({ current_quantity: result.batch.currentQuantity, updated_by: uuidOrUndefined(userId) })
     .eq("id", batch.id)
     .select()
     .single();
@@ -221,7 +221,7 @@ export async function stockOutSupabaseItem(
   for (const batch of changed) {
     const { error } = await supabase
       .from("inventory_batches")
-      .update({ current_quantity: batch.currentQuantity, updated_by: userId })
+      .update({ current_quantity: batch.currentQuantity, updated_by: uuidOrUndefined(userId) })
       .eq("id", batch.id);
     if (error) throw new Error(error.message);
   }
@@ -246,4 +246,8 @@ function requireSupabase() {
 
 function isUuid(value?: string) {
   return Boolean(value?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i));
+}
+
+function uuidOrUndefined(value?: string) {
+  return isUuid(value) ? value : undefined;
 }
