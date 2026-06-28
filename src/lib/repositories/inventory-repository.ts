@@ -119,7 +119,8 @@ export async function createSupabaseItem(
   userId: string
 ): Promise<InventoryItem> {
   const supabase = requireSupabase();
-  const row = toItemRow({ ...input, createdBy: userId, updatedBy: userId });
+  const ownerId = isUuid(input.ownerId) ? input.ownerId : userId;
+  const row = toItemRow({ ...input, ownerId, createdBy: userId, updatedBy: userId });
   const { data, error } = await supabase.from("inventory_items").insert(row).select().single();
   if (error) throw new Error(error.message);
   await writeAudit("inventory_items", data.id, "create", undefined, data, userId);
@@ -153,9 +154,10 @@ export async function createSupabaseBatch(
   userId: string
 ): Promise<{ batch: InventoryBatch; movement: StockMovement }> {
   const supabase = requireSupabase();
+  const purchaserId = isUuid(input.purchaserId) ? input.purchaserId : userId;
   const { data, error } = await supabase
     .from("inventory_batches")
-    .insert(toBatchRow({ ...input, createdBy: userId, updatedBy: userId, purchaserId: input.purchaserId || userId }))
+    .insert(toBatchRow({ ...input, createdBy: userId, updatedBy: userId, purchaserId }))
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -239,4 +241,8 @@ function requireSupabase() {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("未配置 Supabase 环境变量");
   return supabase;
+}
+
+function isUuid(value?: string) {
+  return Boolean(value?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i));
 }

@@ -168,6 +168,7 @@ export default function InventoryDetailPage() {
           <InventoryItemForm
             categories={inventory.categories}
             initial={item}
+            currentUserId={inventory.currentUser.id}
             onCancel={() => setModal(null)}
             onSubmit={async (input) => {
               try {
@@ -185,6 +186,7 @@ export default function InventoryDetailPage() {
         <Modal title={`新增入库批次：${item.name}`} onClose={() => setModal(null)}>
           <BatchForm
             item={item}
+            currentUserId={inventory.currentUser.id}
             onCancel={() => setModal(null)}
             onSubmit={async (input) => {
               try {

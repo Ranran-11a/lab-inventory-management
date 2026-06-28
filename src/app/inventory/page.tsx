@@ -96,6 +96,7 @@ export default function InventoryPage() {
         <Modal title="新增物品" onClose={() => setModal(null)}>
           <InventoryItemForm
             categories={categories}
+            currentUserId={currentUser.id}
             onCancel={() => setModal(null)}
             onSubmit={async (input) => {
               try {
@@ -115,6 +116,7 @@ export default function InventoryPage() {
           <InventoryItemForm
             categories={categories}
             initial={modal.item}
+            currentUserId={currentUser.id}
             onCancel={() => setModal(null)}
             onSubmit={async (input) => {
               try {
@@ -132,6 +134,7 @@ export default function InventoryPage() {
         <Modal title={`新增入库批次：${modal.item.name}`} onClose={() => setModal(null)}>
           <BatchForm
             item={modal.item}
+            currentUserId={currentUser.id}
             onCancel={() => setModal(null)}
             onSubmit={async (input) => {
               try {

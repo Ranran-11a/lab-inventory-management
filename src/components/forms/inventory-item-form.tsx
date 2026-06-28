@@ -15,11 +15,12 @@ const itemTypes = [
 interface Props {
   categories: FunctionCategory[];
   initial?: InventoryItem;
+  currentUserId?: string;
   onSubmit: (input: Omit<InventoryItem, "id" | "createdBy" | "updatedBy" | "createdAt" | "updatedAt" | "deletedAt">) => void | Promise<void>;
   onCancel?: () => void;
 }
 
-export function InventoryItemForm({ categories, initial, onSubmit, onCancel }: Props) {
+export function InventoryItemForm({ categories, initial, currentUserId, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     itemType: initial?.itemType ?? "reagent",
@@ -36,7 +37,7 @@ export function InventoryItemForm({ categories, initial, onSubmit, onCancel }: P
     defaultLocation: initial?.defaultLocation ?? "",
     storageCondition: initial?.storageCondition ?? "",
     safetyLevel: initial?.safetyLevel ?? "普通",
-    ownerId: initial?.ownerId ?? "user-editor",
+    ownerId: initial?.ownerId ?? currentUserId ?? "",
     notes: initial?.notes ?? "",
     tags: initial?.tags.join("，") ?? ""
   });

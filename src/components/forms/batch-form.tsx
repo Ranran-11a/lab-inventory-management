@@ -6,10 +6,12 @@ import type { InventoryBatch, InventoryItem } from "@/types/inventory";
 
 export function BatchForm({
   item,
+  currentUserId,
   onSubmit,
   onCancel
 }: {
   item: InventoryItem;
+  currentUserId?: string;
   onSubmit: (input: Omit<InventoryBatch, "id" | "createdBy" | "updatedBy" | "createdAt" | "updatedAt" | "deletedAt">) => void | Promise<void>;
   onCancel: () => void;
 }) {
@@ -22,7 +24,7 @@ export function BatchForm({
     unitPrice: "0",
     currency: "CNY",
     supplier: item.defaultSupplier ?? "",
-    purchaserId: "user-editor",
+    purchaserId: currentUserId ?? "",
     location: item.defaultLocation,
     invoiceNumber: "",
     orderNumber: "",
