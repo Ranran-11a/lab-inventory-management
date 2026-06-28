@@ -130,7 +130,8 @@ export async function createSupabaseItem(
 export async function updateSupabaseItem(id: string, input: Partial<InventoryItem>, userId: string): Promise<InventoryItem> {
   const supabase = requireSupabase();
   const { data: oldValue } = await supabase.from("inventory_items").select("*").eq("id", id).maybeSingle();
-  const { data, error } = await supabase.from("inventory_items").update(toItemRow({ ...input, updatedBy: userId })).eq("id", id).select().single();
+  const ownerId = input.ownerId === undefined ? undefined : isUuid(input.ownerId) ? input.ownerId : userId;
+  const { data, error } = await supabase.from("inventory_items").update(toItemRow({ ...input, ownerId, updatedBy: userId })).eq("id", id).select().single();
   if (error) throw new Error(error.message);
   await writeAudit("inventory_items", id, "update", oldValue, data, userId);
   return mapItem(data);
