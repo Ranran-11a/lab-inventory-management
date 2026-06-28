@@ -72,8 +72,8 @@ export function toItemRow(item: Partial<InventoryItem>) {
     owner_id: uuidOrUndefined(item.ownerId),
     notes: item.notes,
     tags: item.tags,
-    created_by: item.createdBy,
-    updated_by: item.updatedBy,
+    created_by: uuidOrUndefined(item.createdBy),
+    updated_by: uuidOrUndefined(item.updatedBy),
     deleted_at: item.deletedAt
   };
 }
@@ -119,8 +119,8 @@ export function toBatchRow(batch: Partial<InventoryBatch>) {
     invoice_number: batch.invoiceNumber,
     order_number: batch.orderNumber,
     notes: batch.notes,
-    created_by: batch.createdBy,
-    updated_by: batch.updatedBy,
+    created_by: uuidOrUndefined(batch.createdBy),
+    updated_by: uuidOrUndefined(batch.updatedBy),
     deleted_at: batch.deletedAt
   };
 }
@@ -150,7 +150,7 @@ export function toMovementRow(movement: Partial<StockMovement>) {
     quantity_before: movement.quantityBefore,
     quantity_after: movement.quantityAfter,
     reason: movement.reason,
-    operator_id: movement.operatorId,
+    operator_id: uuidOrUndefined(movement.operatorId),
     notes: movement.notes
   };
 }
@@ -162,7 +162,7 @@ export function toAuditRow(audit: Partial<AuditLog>) {
     action: audit.action,
     old_value: audit.oldValue,
     new_value: audit.newValue,
-    operator_id: audit.operatorId
+    operator_id: uuidOrUndefined(audit.operatorId)
   };
 }
 
