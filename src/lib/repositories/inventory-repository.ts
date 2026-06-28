@@ -119,35 +119,38 @@ export async function createSupabaseItem(
   userId: string
 ): Promise<InventoryItem> {
   const supabase = requireSupabase();
-  const ownerId = isUuid(input.ownerId) ? input.ownerId : userId;
-  const row = toItemRow({ ...input, ownerId, createdBy: userId, updatedBy: userId });
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
+  const ownerId = isUuid(input.ownerId) ? input.ownerId : operatorId;
+  const row = toItemRow({ ...input, ownerId, createdBy: operatorId, updatedBy: operatorId });
   const { data, error } = await supabase.from("inventory_items").insert(row).select().single();
   if (error) throw new Error(error.message);
-  await writeAudit("inventory_items", data.id, "create", undefined, data, userId);
+  await writeAudit("inventory_items", data.id, "create", undefined, data, operatorId);
   return mapItem(data);
 }
 
 export async function updateSupabaseItem(id: string, input: Partial<InventoryItem>, userId: string): Promise<InventoryItem> {
   const supabase = requireSupabase();
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
   const { data: oldValue } = await supabase.from("inventory_items").select("*").eq("id", id).maybeSingle();
-  const ownerId = input.ownerId === undefined ? undefined : isUuid(input.ownerId) ? input.ownerId : userId;
-  const { data, error } = await supabase.from("inventory_items").update(toItemRow({ ...input, ownerId, updatedBy: userId })).eq("id", id).select().single();
+  const ownerId = input.ownerId === undefined ? undefined : isUuid(input.ownerId) ? input.ownerId : operatorId;
+  const { data, error } = await supabase.from("inventory_items").update(toItemRow({ ...input, ownerId, updatedBy: operatorId })).eq("id", id).select().single();
   if (error) throw new Error(error.message);
-  await writeAudit("inventory_items", id, "update", oldValue, data, userId);
+  await writeAudit("inventory_items", id, "update", oldValue, data, operatorId);
   return mapItem(data);
 }
 
 export async function softDeleteSupabaseItem(id: string, userId: string): Promise<void> {
   const supabase = requireSupabase();
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
   const { data: oldValue } = await supabase.from("inventory_items").select("*").eq("id", id).maybeSingle();
   const { data, error } = await supabase
     .from("inventory_items")
-    .update({ deleted_at: new Date().toISOString(), updated_by: uuidOrUndefined(userId) })
+    .update({ deleted_at: new Date().toISOString(), updated_by: uuidOrUndefined(operatorId) })
     .eq("id", id)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await writeAudit("inventory_items", id, "delete", oldValue, data, userId);
+  await writeAudit("inventory_items", id, "delete", oldValue, data, operatorId);
 }
 
 export async function createSupabaseBatch(
@@ -155,10 +158,11 @@ export async function createSupabaseBatch(
   userId: string
 ): Promise<{ batch: InventoryBatch; movement: StockMovement }> {
   const supabase = requireSupabase();
-  const purchaserId = isUuid(input.purchaserId) ? input.purchaserId : userId;
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
+  const purchaserId = isUuid(input.purchaserId) ? input.purchaserId : operatorId;
   const { data, error } = await supabase
     .from("inventory_batches")
-    .insert(toBatchRow({ ...input, createdBy: userId, updatedBy: userId, purchaserId }))
+    .insert(toBatchRow({ ...input, createdBy: operatorId, updatedBy: operatorId, purchaserId }))
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -171,12 +175,12 @@ export async function createSupabaseBatch(
     quantityBefore: 0,
     quantityAfter: batch.currentQuantity,
     reason: "新增入库批次",
-    operatorId: userId,
+    operatorId,
     notes: batch.notes
   };
   const { data: movementData, error: movementError } = await supabase.from("stock_movements").insert(toMovementRow(movementInput)).select().single();
   if (movementError) throw new Error(movementError.message);
-  await writeAudit("inventory_batches", batch.id, "create", undefined, data, userId);
+  await writeAudit("inventory_batches", batch.id, "create", undefined, data, operatorId);
   return { batch, movement: mapMovement(movementData) };
 }
 
@@ -188,18 +192,19 @@ export async function stockOutSupabaseBatch(
   notes?: string
 ): Promise<{ batch: InventoryBatch; movement: StockMovement; error?: string }> {
   const supabase = requireSupabase();
-  const result = deductFromSpecificBatch(batch, quantity, userId, reason, notes);
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
+  const result = deductFromSpecificBatch(batch, quantity, operatorId, reason, notes);
   if (result.error || !result.movement) return { batch, movement: result.movement as StockMovement, error: result.error };
   const { data, error } = await supabase
     .from("inventory_batches")
-    .update({ current_quantity: result.batch.currentQuantity, updated_by: uuidOrUndefined(userId) })
+    .update({ current_quantity: result.batch.currentQuantity, updated_by: uuidOrUndefined(operatorId) })
     .eq("id", batch.id)
     .select()
     .single();
   if (error) throw new Error(error.message);
   const { data: movementData, error: movementError } = await supabase.from("stock_movements").insert(toMovementRow(result.movement)).select().single();
   if (movementError) throw new Error(movementError.message);
-  await writeAudit("inventory_batches", batch.id, "update", batch, data, userId);
+  await writeAudit("inventory_batches", batch.id, "update", batch, data, operatorId);
   return { batch: mapBatch(data), movement: mapMovement(movementData) };
 }
 
@@ -212,7 +217,8 @@ export async function stockOutSupabaseItem(
   notes?: string
 ): Promise<{ batches: InventoryBatch[]; movements: StockMovement[]; error?: string }> {
   const supabase = requireSupabase();
-  const result = deductFromEarliestExpiringBatches(itemId, batches, quantity, userId, reason, notes);
+  const operatorId = await getAuthenticatedUserId(supabase, userId);
+  const result = deductFromEarliestExpiringBatches(itemId, batches, quantity, operatorId, reason, notes);
   if (result.error) return result;
   const changed = result.batches.filter((batch) => {
     const oldBatch = batches.find((candidate) => candidate.id === batch.id);
@@ -221,7 +227,7 @@ export async function stockOutSupabaseItem(
   for (const batch of changed) {
     const { error } = await supabase
       .from("inventory_batches")
-      .update({ current_quantity: batch.currentQuantity, updated_by: uuidOrUndefined(userId) })
+      .update({ current_quantity: batch.currentQuantity, updated_by: uuidOrUndefined(operatorId) })
       .eq("id", batch.id);
     if (error) throw new Error(error.message);
   }
@@ -229,13 +235,14 @@ export async function stockOutSupabaseItem(
     const { error } = await supabase.from("stock_movements").insert(result.movements.map(toMovementRow));
     if (error) throw new Error(error.message);
   }
-  await writeAudit("inventory_batches", itemId, "update", undefined, { quantity, reason }, userId);
+  await writeAudit("inventory_batches", itemId, "update", undefined, { quantity, reason }, operatorId);
   return result;
 }
 
 async function writeAudit(tableName: string, recordId: string, action: "create" | "update" | "delete" | "restore", oldValue: unknown, newValue: unknown, userId: string) {
   const supabase = requireSupabase();
-  await supabase.from("audit_logs").insert(toAuditRow({ tableName, recordId, action, oldValue, newValue, operatorId: userId }));
+  const { error } = await supabase.from("audit_logs").insert(toAuditRow({ tableName, recordId, action, oldValue, newValue, operatorId: uuidOrUndefined(userId) }));
+  if (error) console.warn("Audit log write failed:", error.message);
 }
 
 function requireSupabase() {
@@ -250,4 +257,12 @@ function isUuid(value?: string) {
 
 function uuidOrUndefined(value?: string) {
   return isUuid(value) ? value : undefined;
+}
+
+async function getAuthenticatedUserId(supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>, fallback?: string) {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message);
+  const userId = uuidOrUndefined(data.user?.id) ?? uuidOrUndefined(fallback);
+  if (!userId) throw new Error("无法识别当前登录用户，请退出后重新登录");
+  return userId;
 }
